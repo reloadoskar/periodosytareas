@@ -1,67 +1,96 @@
-import { useMemo, useState } from 'react'
-import moment from 'moment'
-import { usePeriodos } from '@/contextos/periodosContext'
-import { useAuth } from '@/contextos/authContext'
-moment.locale('es')
+import { useMemo, useState } from "react";
+import { usePeriodos } from "@/contextos/periodosContext";
+import { calculateHours, normalizePeriodo } from "@/utils/periodos";
+
 export default function CrearPeriodo({ salir }) {
-    const {user} = useAuth()
-    const {createPeriodo, currentPeriodo, setCurrentPeriodo} = usePeriodos()
-    // const [nombre, setNombre] = useState("")
-    // const [inicio, setInicio] = useState("")
-    // const [final, setFinal] = useState("")
-    // const [color, setColor] = useState("")
-    // const [repetir, setRepetir] = useState([])
+  const { createPeriodo, currentPeriodoDraft, setCurrentPeriodoDraft } =
+    usePeriodos();
+  const [error, setError] = useState("");
 
-    const horas = useMemo(() => {
-        if (currentPeriodo?.horaInicio && currentPeriodo?.horaFin) {
-            let [hoursa, minsa] = currentPeriodo.horaInicio.split(":").map(Number);
-            let [hoursb, minsb] = currentPeriodo.horaFin.split(":").map(Number);
-            if (!isNaN(hoursa) && !isNaN(minsa) && !isNaN(hoursb) && !isNaN(minsb)) {
-                let start = moment().hours(hoursa).minutes(minsa);
-                let end = moment().hours(hoursb).minutes(minsb);
-                if (end.isBefore(start)) {
-                    end.add(1, 'day');
-                }
-                setCurrentPeriodo({...currentPeriodo, horas: moment.duration(end.diff(start)).asHours()});
-                return moment.duration(end.diff(start)).asHours()
-            }
-        }
-        return 0;
-    }, [currentPeriodo?.horaInicio, currentPeriodo?.horaFin]);
+  const periodo = normalizePeriodo(currentPeriodoDraft);
+  const horas = useMemo(
+    () => calculateHours(periodo.horaInicio, periodo.horaFin),
+    [periodo.horaInicio, periodo.horaFin],
+  );
 
-    const guardar = () => {
-        createPeriodo(user.database, currentPeriodo);
-        setCurrentPeriodo(null);
-        salir()
+  const setPeriodoField = (field, value) => {
+    setCurrentPeriodoDraft((current) =>
+      normalizePeriodo({ ...current, [field]: value }),
+    );
+  };
+
+  const guardar = async (event) => {
+    event.preventDefault();
+    setError("");
+
+    try {
+      await createPeriodo({ ...periodo, horas });
+      salir();
+    } catch (err) {
+      setError(err.message);
     }
-    return (
-        <form className='flex px-4 justify-center items-center' onSubmit={guardar}>
-            <div className='flex w-full gap-4 justify-center items-center'>
-                <div className='flex flex-col'>
-                    <label>Nombre</label>
-                    <input className='inpt' required autoFocus
-                        id="nombre" name="nombre" type='text' value={currentPeriodo?.nombre} onChange={(e) => setCurrentPeriodo({...currentPeriodo, nombre: e.target.value})} />
-                </div>
-                <div className='flex flex-col'>
-                    <label>Desde:</label>
-                    <input className='inpt' name="horaInicio" required
-                        type='time' value={currentPeriodo?.horaInicio} onChange={(e) => setCurrentPeriodo({...currentPeriodo, horaInicio: e.target.value})} />
-                </div>
-                <div className='flex flex-col'>
-                    <label>Hasta:</label>
-                    <input className='inpt' name="horaFin" required
-                        type='time' value={currentPeriodo?.horaFin} onChange={(e) => setCurrentPeriodo({...currentPeriodo, horaFin: e.target.value})} />
-                </div>
-                <div className='flex flex-col gap-2'>
-                    <label>Color:</label>
-                    <input name="color" type='color' required
-                        value={currentPeriodo?.color} onChange={(e) => setCurrentPeriodo({...currentPeriodo, color: e.target.value})} />
-                </div>
-                <div className='flex gap-2'>
-                    <button type='button' className='btn_cncl' onClick={salir} >salir</button>
-                    <button type='button' className='btn' onClick={guardar} >guardar</button>
-                </div>
-            </div>
-        </form>
-    )
+  };
+
+  return (
+    <form className="flex px-4 justify-center items-center" onSubmit={guardar}>
+      <div className="flex w-full gap-4 justify-center items-center flex-wrap">
+        <div className="flex flex-col">
+          <label htmlFor="nombre">Nombre</label>
+          <input
+            className="inpt"
+            id="nombre"
+            name="nombre"
+            onChange={(e) => setPeriodoField("nombre", e.target.value)}
+            required
+            type="text"
+            value={periodo.nombre}
+          />
+        </div>
+        <div className="flex flex-col">
+          <label htmlFor="horaInicio">Desde:</label>
+          <input
+            className="inpt"
+            name="horaInicio"
+            onChange={(e) => setPeriodoField("horaInicio", e.target.value)}
+            required
+            type="time"
+            value={periodo.horaInicio}
+          />
+        </div>
+        <div className="flex flex-col">
+          <label htmlFor="horaFin">Hasta:</label>
+          <input
+            className="inpt"
+            name="horaFin"
+            onChange={(e) => setPeriodoField("horaFin", e.target.value)}
+            required
+            type="time"
+            value={periodo.horaFin}
+          />
+        </div>
+        <div className="flex flex-col gap-2">
+          <label htmlFor="color">Color:</label>
+          <input
+            name="color"
+            onChange={(e) => setPeriodoField("color", e.target.value)}
+            required
+            type="color"
+            value={periodo.color}
+          />
+        </div>
+        <div className="text-white">{horas} h</div>
+        <div className="flex gap-2">
+          <button className="btn_cncl" onClick={salir} type="button">
+            salir
+          </button>
+          <button className="btn" type="submit">
+            guardar
+          </button>
+        </div>
+        {error ? (
+          <p className="w-full text-red-500 text-center">{error}</p>
+        ) : null}
+      </div>
+    </form>
+  );
 }

@@ -1,227 +1,178 @@
-'use client'
-import { useEffect, useState } from "react";
+"use client";
+
 import moment from "moment";
-import ProgressBar from "./ProgressBar";
-import Reloj from "./Reloj"
-import Tareas from "./Tareas";
-import CrearTarea from "./CrearTarea";
-import Notificador from "./Notificador";
-import Periodos from "./periodos/Periodos";
-import { FaBars, FaTimes } from "react-icons/fa"; // Importa el icono de hamburguesa
-import Nav from "./Nav";
-import Login from "./Login";
+import { useEffect, useMemo, useState } from "react";
+import { FaBars } from "react-icons/fa";
 import { useAuth } from "@/contextos/authContext";
+import { usePeriodos } from "@/contextos/periodosContext";
+import {
+  getCurrentPeriodo,
+  normalizePeriodo,
+  reorderItem,
+  updatePeriodoTask,
+} from "@/utils/periodos";
+import CrearTarea from "./CrearTarea";
+import Login from "./Login";
+import Nav from "./Nav";
+import Notificador from "./Notificador";
+import ProgressBar from "./ProgressBar";
+import Reloj from "./Reloj";
+import Tareas from "./Tareas";
+
 moment.locale("es");
 
 export default function Page() {
-	const {autenticado, user} = useAuth();
-	const [periodos, setPeriodos] = useState([])
-	const [isMounted, setIsMounted] = useState(false);
-	const [showPeriodosMenu, setShowPeriodosMenu] = useState(false);
+  const { autenticado, loading: authLoading } = useAuth();
+  const {
+    periodos,
+    loading: periodosLoading,
+    error,
+    updatePeriodo,
+  } = usePeriodos();
+  const [currentTime, setCurrentTime] = useState(moment().format("HH:mm"));
+  const [showPeriodosMenu, setShowPeriodosMenu] = useState(false);
 
-	useEffect(() => {
-		setIsMounted(true);
-		const storedPeriodos = localStorage.getItem('periodos');
-		if (storedPeriodos) {
-			setPeriodos(JSON.parse(storedPeriodos));
-		}
-	}, []);
+  useEffect(() => {
+    const interval = setInterval(
+      () => setCurrentTime(moment().format("HH:mm")),
+      1000,
+    );
+    return () => clearInterval(interval);
+  }, []);
 
-	useEffect(() => {
-		if (isMounted) {
-			localStorage.setItem('periodos', JSON.stringify(periodos));
-		}
-	}, [periodos, isMounted]);
+  const currentPeriodo = useMemo(
+    () => getCurrentPeriodo(periodos, currentTime),
+    [periodos, currentTime],
+  );
+  const backgroundColor = currentPeriodo?.color ?? "#3d3d3d";
 
+  const persistCurrentPeriodo = async (updatedPeriodo) => {
+    if (!updatedPeriodo?._id) return;
+    await updatePeriodo(updatedPeriodo._id, updatedPeriodo);
+  };
 
+  const handleAddTarea = async (nuevaTarea) => {
+    if (nuevaTarea.nombre.trim() === "" || !currentPeriodo) return;
 
-	const [currentPeriodo, setCurrentPeriodo] = useState(null);
-	const [tareas, setTareas] = useState([]);
-	const [backgroundColor, setBackgroundColor] = useState("#3d3d3d");
+    const add = new Audio("/sounds/add.mp3");
+    add.play();
 
-	// Sincroniza periodos con localStorage cada vez que cambian
-	useEffect(() => {
-		localStorage.setItem('periodos', JSON.stringify(periodos));
-	}, [periodos]);
+    await persistCurrentPeriodo({
+      ...normalizePeriodo(currentPeriodo),
+      tareas: [...(currentPeriodo.tareas || []), nuevaTarea],
+    });
+  };
 
-	useEffect(() => {
-		const updateBackgroundColor = () => {
-			const now = moment();
-			const currentHour = now.hours() + now.minutes() / 60;
+  const playSound = (soundPath) => {
+    const audio = new Audio(soundPath);
+    audio.play();
+  };
 
-			for (const periodo of periodos) {
-				const startHour = parseInt(periodo.inicio.split(":")[0], 10) + parseInt(periodo.inicio.split(":")[1], 10) / 60;
-				const endHour = parseInt(periodo.final.split(":")[0], 10) + parseInt(periodo.final.split(":")[1], 10) / 60;
+  const handleDeleteTarea = async (index) => {
+    if (!currentPeriodo) return;
 
-				if (currentHour >= startHour && currentHour < endHour) {
-					setBackgroundColor(periodo.color);
-					setCurrentPeriodo(periodo);
+    playSound("/sounds/task-delete.wav");
 
-					return;
-				}
-			}
-			// Default background color if no period matches
-			setBackgroundColor("#3d3d3d");
-			setCurrentPeriodo(null);
-		};
+    await persistCurrentPeriodo({
+      ...normalizePeriodo(currentPeriodo),
+      tareas: (currentPeriodo.tareas || []).filter((_, i) => i !== index),
+    });
+  };
 
-		updateBackgroundColor();
-		const interval = setInterval(() => {
-			updateBackgroundColor();
-		}, 1000); // Update every second
+  const handleToggleCompleteTarea = async (index) => {
+    if (!currentPeriodo) return;
 
-		return () => clearInterval(interval);
-	}, [periodos]);
+    const task = currentPeriodo.tareas?.[index];
+    playSound(
+      task && !task.completed
+        ? "/sounds/task-complete.wav"
+        : "/sounds/task-reopen.wav",
+    );
 
-	const addPeriodo = (nperiodo) => {
-        setPeriodos([...periodos, nperiodo])
-        // setCreateMode(false)
-    }
+    await persistCurrentPeriodo(
+      updatePeriodoTask(currentPeriodo, index, (tarea) => ({
+        ...tarea,
+        completed: !tarea.completed,
+        completedTime: !tarea.completed ? new Date() : null,
+      })),
+    );
+  };
 
-    const deletePeriodo = (index) => {
-        const newPeriodos = periodos.filter((_, i) => i !== index);
-        setPeriodos(newPeriodos);
-    }
+  const handleMoveTarea = async (index, direction) => {
+    if (!currentPeriodo) return;
 
-	const editPeriodo = (index, updatedPeriodo) => {
-        const newPeriodos = periodos.map((periodo, i) =>
-            i === index ? { ...periodo, ...updatedPeriodo } : periodo
-        );
-        setPeriodos(newPeriodos);
+    const nextTareas = reorderItem(
+      currentPeriodo.tareas || [],
+      index,
+      direction,
+    );
+    if (nextTareas === (currentPeriodo.tareas || [])) return;
 
-        // Si el periodo editado es el actual, actualiza también currentPeriodo
-        if (currentPeriodo && periodos[index].nombre === currentPeriodo.nombre) {
-            setCurrentPeriodo({ ...currentPeriodo, ...updatedPeriodo });
-        }
-    };
+    playSound(direction < 0 ? "/sounds/task-up.wav" : "/sounds/task-down.wav");
 
-	const handleAddTarea = (nuevaTarea) => {
-		const add = new Audio('/sounds/add.mp3');
-		if (nuevaTarea.nombre.trim() !== "" && currentPeriodo) {
-			add.play();
-			// Actualiza el periodo actual con la nueva tarea
-			const newPeriodos = periodos.map(periodo => {
-				if (periodo.nombre === currentPeriodo.nombre) {
-					const tareasActualizadas = periodo.tareas ? [...periodo.tareas, nuevaTarea] : [nuevaTarea];
-					return { ...periodo, tareas: tareasActualizadas };
-				}
-				return periodo;
-			});
-			setPeriodos(newPeriodos);
-			setCurrentPeriodo({
-				...currentPeriodo,
-				tareas: currentPeriodo.tareas ? [...currentPeriodo.tareas, nuevaTarea] : [nuevaTarea]
-			});
-		}
-	}
+    await persistCurrentPeriodo({
+      ...normalizePeriodo(currentPeriodo),
+      tareas: nextTareas,
+    });
+  };
 
-	const handleDeleteTarea = (index) => {
-		const cancel = new Audio('/sounds/error.mp3');
-		cancel.play();
-		if (!currentPeriodo) return;
+  if (authLoading) return null;
 
-		// Elimina la tarea del periodo actual
-		const nuevasTareas = (currentPeriodo.tareas || []).filter((_, i) => i !== index);
+  return (
+    <div
+      className="min-h-screen p-5"
+      style={{ backgroundColor, transition: "background-color 6s" }}
+    >
+      {!showPeriodosMenu && autenticado
+        ? <button
+            className="fixed top-5 left-5 z-50 bg-gray-900 text-white p-2 rounded-full shadow-md"
+            onClick={() => setShowPeriodosMenu(true)}
+            type="button"
+          >
+            <FaBars size={24} />
+          </button>
+        : null}
 
-		// Actualiza periodos
-		const newPeriodos = periodos.map(periodo => {
-			if (periodo.nombre === currentPeriodo.nombre) {
-				return { ...periodo, tareas: nuevasTareas };
-			}
-			return periodo;
-		});
+      {autenticado
+        ? <>
+            <Nav
+              showPeriodosMenu={showPeriodosMenu}
+              setShowPeriodosMenu={setShowPeriodosMenu}
+              currentPeriodo={currentPeriodo}
+            />
+            <Notificador currentPeriodo={currentPeriodo} />
+            <div className="text-slate-950 text-center md:text-right md:pr-28 pr-5">
+              <Reloj />
+            </div>
 
-		setPeriodos(newPeriodos);
-		setCurrentPeriodo({ ...currentPeriodo, tareas: nuevasTareas });
-	};
+            {periodosLoading
+              ? <p className="text-center text-white">Cargando periodos...</p>
+              : null}
+            {error ? <p className="text-center text-red-500">{error}</p> : null}
 
-	const handleToggleCompleteTarea = (index) => {
-		const succes = new Audio('/sounds/succes.mp3');
-		const error = new Audio('/sounds/cancel.mp3');
-		if (!currentPeriodo) return;
+            {currentPeriodo
+              ? <div className="w-3/4 m-auto">
+                  <h1 className="ttlbig">{currentPeriodo.nombre}</h1>
+                  <ProgressBar currentPeriodo={currentPeriodo} />
+                </div>
+              : <div className="titulo">
+                  {"<--Crea un periodo para empezar a trabajar con tareas"}
+                </div>}
 
-		// Cambia el estado de completado de la tarea
-		const nuevasTareas = (currentPeriodo.tareas || []).map((tarea, i) => {
-			if (i === index) {
-				if (!tarea.completed) {
-					succes.play();
-				} else {
-					error.play();
-				}
-				return { ...tarea, completed: !tarea.completed };
-			}
-			return tarea;
-		});
+            <Tareas
+              currentPeriodo={currentPeriodo}
+              tareas={currentPeriodo?.tareas || []}
+              handleDeleteTarea={handleDeleteTarea}
+              handleToggleCompleteTarea={handleToggleCompleteTarea}
+              handleMoveTarea={handleMoveTarea}
+            />
 
-		// Actualiza periodos
-		const newPeriodos = periodos.map(periodo => {
-			if (periodo.nombre === currentPeriodo.nombre) {
-				return { ...periodo, tareas: nuevasTareas };
-			}
-			return periodo;
-		});
-
-		setPeriodos(newPeriodos);
-		setCurrentPeriodo({ ...currentPeriodo, tareas: nuevasTareas });
-	};
-
-	const handleMoveTarea = (index, direction) => {
-		const tareasActuales = tareas;
-		const newIndex = index + direction;
-		if (newIndex < 0 || newIndex >= tareasActuales.length) return;
-		const nuevasTareas = [...tareasActuales];
-		const [moved] = nuevasTareas.splice(index, 1);
-		nuevasTareas.splice(newIndex, 0, moved);
-
-		const newPeriodos = periodos.map(periodo => {
-			if (periodo.nombre === currentPeriodo.nombre) {
-				return { ...periodo, tareas: nuevasTareas };
-			}
-			return periodo;
-		});
-		setPeriodos(newPeriodos);
-		setCurrentPeriodo({ ...currentPeriodo, tareas: nuevasTareas });
-	};
-
-	if (!isMounted) return null; // Evita renderizar hasta que esté montado
-
-	return (
-		<div className="min-h-screen p-5" style={{ backgroundColor: backgroundColor, transition: "background-color 6s" }}>
-			{/* Botón de hamburguesa */}
-			{showPeriodosMenu ? null : (
-				<button
-					className="fixed top-5 left-5 z-50 bg-gray-900 text-white p-2 rounded-full shadow-md"
-					onClick={() => setShowPeriodosMenu(true)}
-				>
-					<FaBars size={24} />
-				</button>
-			)}
-
-			<Nav showPeriodosMenu={showPeriodosMenu} setShowPeriodosMenu={setShowPeriodosMenu} periodos={periodos} setPeriodos={setPeriodos} currentPeriodo={currentPeriodo} addPeriodo={addPeriodo} deletePeriodo={deletePeriodo} editPeriodo={editPeriodo} />
-
-			<Notificador currentPeriodo={currentPeriodo} />
-			<div className="text-slate-950 text-center md:text-right md:pr-28 pr-5">
-				<Reloj />
-			</div>
-
-			{currentPeriodo ? (
-				<div className="w-3/4 m-auto">
-					<h1 className="ttlbig">{currentPeriodo.nombre}</h1>
-					<ProgressBar currentPeriodo={currentPeriodo} />
-				</div>
-			) : <div className="titulo"> {"<--Crea un periodo para empezar a trabajar con tareas"} </div>}
-
-			<Tareas
-				currentPeriodo={currentPeriodo}
-				tareas={currentPeriodo?.tareas || []}
-				handleDeleteTarea={handleDeleteTarea}
-				handleToggleCompleteTarea={handleToggleCompleteTarea}
-				handleMoveTarea={handleMoveTarea}
-			/>
-
-			<CrearTarea handleAddTarea={handleAddTarea} currentPeriodo={currentPeriodo} />
-
-			{!autenticado && <Login />}
-		</div>
-	);
+            <CrearTarea
+              handleAddTarea={handleAddTarea}
+              currentPeriodo={currentPeriodo}
+            />
+          </>
+        : <Login />}
+    </div>
+  );
 }
