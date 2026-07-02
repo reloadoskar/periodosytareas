@@ -9,7 +9,7 @@ const globalCache = globalThis.__mongooseConnections ?? {
 };
 globalThis.__mongooseConnections = globalCache;
 
-const buildMongoUri = (dbName) => `${MONGO_URL}${dbName}`;
+const buildMongoUri = (dbName) => `${MONGO_URL}/${dbName}`;
 
 export const dbConnect = async (dbName) => {
   if (!dbName) throw new Error("dbName is required.");
