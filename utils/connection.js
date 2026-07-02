@@ -27,4 +27,4 @@ export const dbConnect = async (dbName) => {
   return connection;
 };
 
-export const getUsersConnection = () => dbConnect("/PYT_USRS");
+export const getUsersConnection = () => dbConnect("PYT_USRS");
