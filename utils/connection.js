@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 
-const { MONGO_URL, MONGOUSER, MONGOPASSWORD } = process.env;
+const { MONGO_URL } = process.env;
 
 
 
@@ -20,7 +20,7 @@ export const dbConnect = async (dbName) => {
   }
 
   const connection = await mongoose
-    .createConnection(buildMongoUri(dbName), {user: MONGOUSER, pass: MONGOPASSWORD})
+    .createConnection(buildMongoUri(dbName))
     .asPromise();
   globalCache.connections.set(dbName, connection);
 
