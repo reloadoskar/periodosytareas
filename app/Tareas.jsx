@@ -16,7 +16,7 @@ export default function Tareas({ tareas, handleDeleteTarea, handleToggleComplete
                                 {tareas.map((tarea, index) => (
                                     <li className={`flex gap-2 rounded-md ${tarea.animate ? 'animate-bounce' : ''} ${tarea.completed ? "bg-gray-800/60" : ""}`} key={index} >
                                         <p className={`basis-4/6 font-black text-lg capitalize ${tarea.completed ? "line-through" : ""}`} >
-                                            {tarea.text}
+                                            {tarea.nombre}
                                         </p>
                                         <button className="basis-1/6" onClick={() => handleToggleCompleteTarea(index)} style={{ marginLeft: "10px" }}>
                                             {tarea.completed ? <FaRedo /> : <FaCheck />}

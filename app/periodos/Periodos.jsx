@@ -52,7 +52,7 @@ export default function Periodos({ periodos, setPeriodos, editPeriodo, addPeriod
 
                     <div className="flex flex-col gap-2 p-2 md:hidden ">
                         {periodos.map((periodo,i)=>(
-                            <div key={i} className={`flex flex-col odd:bg-gray-800/20 ${periodo.nombre === currentPeriodo?.nombre ? "border-4 border-gray-800" : ""}`}>
+                            <div key={i} className={`flex flex-col even:bg-slate-500 ${periodo.nombre === currentPeriodo?.nombre ? "border-4 border-gray-800" : ""}`}>
                                 <div className="flex h-2" style={{backgroundColor:periodo.color}}></div>
                                 <div className="flex flex-col px-2">
                                     <div className="titulo">{periodo.nombre}</div>

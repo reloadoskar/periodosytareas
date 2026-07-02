@@ -24,7 +24,7 @@ export default function Periodo({ periodo, index, deletePeriodo, editPeriodo }) 
     };
 
     return (
-        <div className={`flex px-2 gap-2 odd:bg-gray-800/20 ${periodo.nombre === periodo?.nombre ? "border-b border-gray-800" : ""}`}>
+        <div className={`flex px-2 gap-2 odd:bg-slate-700 text-slate-50 ${periodo.nombre === periodo?.nombre ? "border-b border-slate-100" : ""} `}>
             {editMode ? (
                 <>
                     <input className="basis-1/5 inpt" name="nombre" value={form.nombre} onChange={handleChange} />

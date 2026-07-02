@@ -7,10 +7,14 @@ import Tareas from "./Tareas";
 import CrearTarea from "./CrearTarea";
 import Notificador from "./Notificador";
 import Periodos from "./periodos/Periodos";
-import { FaBars } from "react-icons/fa"; // Importa el icono de hamburguesa
+import { FaBars, FaTimes } from "react-icons/fa"; // Importa el icono de hamburguesa
+import Nav from "./Nav";
+import Login from "./Login";
+import { useAuth } from "@/contextos/authContext";
 moment.locale("es");
 
 export default function Page() {
+	const {autenticado, user} = useAuth();
 	const [periodos, setPeriodos] = useState([])
 	const [isMounted, setIsMounted] = useState(false);
 	const [showPeriodosMenu, setShowPeriodosMenu] = useState(false);
@@ -93,7 +97,7 @@ export default function Page() {
 
 	const handleAddTarea = (nuevaTarea) => {
 		const add = new Audio('/sounds/add.mp3');
-		if (nuevaTarea.text.trim() !== "" && currentPeriodo) {
+		if (nuevaTarea.nombre.trim() !== "" && currentPeriodo) {
 			add.play();
 			// Actualiza el periodo actual con la nueva tarea
 			const newPeriodos = periodos.map(periodo => {
@@ -184,34 +188,16 @@ export default function Page() {
 	return (
 		<div className="min-h-screen p-5" style={{ backgroundColor: backgroundColor, transition: "background-color 6s" }}>
 			{/* Botón de hamburguesa */}
-			<button
-				className="fixed top-5 left-5 z-50 bg-gray-900 text-white p-2 rounded-full shadow-lg"
-				onClick={() => setShowPeriodosMenu(true)}
-			>
-				<FaBars size={24} />
-			</button>
-
-			{/* Menú lateral deslizante */}
-			<div
-				className={`fixed top-0 left-0 h-full w-3/4 bg-teal-300/85 shadow-lg z-40 transition-transform duration-300 ${showPeriodosMenu ? "translate-x-0" : "-translate-x-full"
-					}`}
-			>
-				{/* Botón para cerrar el menú */}
+			{showPeriodosMenu ? null : (
 				<button
-					className="absolute top-4 right-4 text-gray-800"
-					onClick={() => setShowPeriodosMenu(false)}
+					className="fixed top-5 left-5 z-50 bg-gray-900 text-white p-2 rounded-full shadow-md"
+					onClick={() => setShowPeriodosMenu(true)}
 				>
-					X
+					<FaBars size={24} />
 				</button>
-				<Periodos 
-					periodos={periodos} 
-					setPeriodos={setPeriodos} 
-					currentPeriodo={currentPeriodo} 
-					addPeriodo={addPeriodo} 
-					deletePeriodo={deletePeriodo} 
-					editPeriodo={editPeriodo}
-				/>
-			</div>
+			)}
+
+			<Nav showPeriodosMenu={showPeriodosMenu} setShowPeriodosMenu={setShowPeriodosMenu} periodos={periodos} setPeriodos={setPeriodos} currentPeriodo={currentPeriodo} addPeriodo={addPeriodo} deletePeriodo={deletePeriodo} editPeriodo={editPeriodo} />
 
 			<Notificador currentPeriodo={currentPeriodo} />
 			<div className="text-slate-950 text-center md:text-right md:pr-28 pr-5">
@@ -235,6 +221,7 @@ export default function Page() {
 
 			<CrearTarea handleAddTarea={handleAddTarea} currentPeriodo={currentPeriodo} />
 
+			{!autenticado && <Login />}
 		</div>
 	);
 }

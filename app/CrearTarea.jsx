@@ -4,7 +4,7 @@ export default function CrearTarea({handleAddTarea, currentPeriodo}) {
     const [text, setText] = useState("");
     const creaLaTarea = (e,text) =>{
         e.preventDefault();
-        handleAddTarea({periodo:currentPeriodo.nombre, text:text, completed:false});
+        handleAddTarea({periodo:currentPeriodo.nombre, nombre:text, completed:false});
         setText("");
     }
     return (
@@ -12,6 +12,7 @@ export default function CrearTarea({handleAddTarea, currentPeriodo}) {
             {!currentPeriodo ? null :
                 <form onSubmit={(e)=>creaLaTarea(e, text)} className="flex flex-col items-center gap-2">
                     <input
+                        name="nombre"
                         type="text"
                         value={text}
                         onChange={(e) => setText(e.target.value)}

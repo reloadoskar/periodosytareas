@@ -31,6 +31,10 @@
   .ttlbig{
     @apply md:text-6xl text-3xl font-black capitalize
   }
+  .input  {
+    @apply bg-slate-700 text-gray-200 placeholder:text-gray-400 border border-slate-600 
+      focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-md p-2
+  }
 }
 
 body {
