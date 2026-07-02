@@ -35,6 +35,12 @@ export async function POST(request) {
     }
 
     const conn = await getUsersConnection();
+    if (!conn) {
+      return NextResponse.json(
+        { error: "Error al conectar con la base de datos", status: "error" },
+        { status: 500 },
+      );
+    }
     const User = conn.models.User || conn.model("User", UserSchema);
     const usuarioExiste = await User.findOne({ email });
 
