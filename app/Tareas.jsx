@@ -21,12 +21,12 @@ export default function Tareas({
         <p className="text-2xl py-12">¿Nada qué hacer aún?</p>
       ) : (
         <div className="py-12" style={{ textAlign: "center", width: "600px" }}>
-          <h2 className="titulo">Tareas</h2>
+          <h2 className="titulo">Tareas de hoy</h2>
           <ul className="flex flex-col gap-2">
-            {tareas.map((tarea, index) => (
+            {tareas.map((tarea) => (
               <li
                 className={`flex gap-2 rounded-md ${tarea.animate ? "animate-bounce" : ""} ${tarea.completed ? "bg-gray-800/60" : ""}`}
-                key={tarea._id ?? `${tarea.nombre}-${index}`}
+                key={tarea._id}
               >
                 <p
                   className={`basis-3/6 font-black text-lg capitalize ${tarea.completed ? "line-through" : ""}`}
@@ -35,7 +35,7 @@ export default function Tareas({
                 </p>
                 <button
                   className="basis-1/6"
-                  onClick={() => handleMoveTarea(index, -1)}
+                  onClick={() => handleMoveTarea(tarea._id, -1)}
                   style={{ marginLeft: "10px" }}
                   type="button"
                 >
@@ -43,7 +43,7 @@ export default function Tareas({
                 </button>
                 <button
                   className="basis-1/6"
-                  onClick={() => handleMoveTarea(index, 1)}
+                  onClick={() => handleMoveTarea(tarea._id, 1)}
                   style={{ marginLeft: "10px" }}
                   type="button"
                 >
@@ -51,7 +51,7 @@ export default function Tareas({
                 </button>
                 <button
                   className="basis-1/6"
-                  onClick={() => handleToggleCompleteTarea(index)}
+                  onClick={() => handleToggleCompleteTarea(tarea)}
                   style={{ marginLeft: "10px" }}
                   type="button"
                 >
@@ -59,7 +59,7 @@ export default function Tareas({
                 </button>
                 <button
                   className="basis-1/6"
-                  onClick={() => handleDeleteTarea(index)}
+                  onClick={() => handleDeleteTarea(tarea._id)}
                   style={{ marginLeft: "10px" }}
                   type="button"
                 >

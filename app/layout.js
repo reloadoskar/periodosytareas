@@ -2,6 +2,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ProvideAuth } from "@/contextos/authContext";
 import { ProvidePeriodos } from "@/contextos/periodosContext";
+import { ProvideTareas } from "@/contextos/tareasContext";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -42,7 +43,9 @@ export default function RootLayout({ children }) {
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <ProvideAuth>
-          <ProvidePeriodos>{children}</ProvidePeriodos>
+          <ProvidePeriodos>
+            <ProvideTareas>{children}</ProvideTareas>
+          </ProvidePeriodos>
         </ProvideAuth>
       </body>
     </html>

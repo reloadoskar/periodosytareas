@@ -2,8 +2,10 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
+import { PeriodoSchema } from "@/models/periodo";
 import UserSchema from "@/schemas/user";
-import { getUsersConnection } from "@/utils/connection";
+import { dbConnect, getUsersConnection } from "@/utils/connection";
+import { getDefaultPeriodos } from "@/utils/defaultPeriodos";
 
 const { JWT_SECRET } = process.env;
 
@@ -52,12 +54,18 @@ export async function POST(request) {
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
+    const database = sanitizeDatabaseName(email);
     const newUser = await User.create({
       email,
       password: hashedPassword,
-      database: sanitizeDatabaseName(email),
+      database,
       level: 1,
     });
+
+    const userConn = await dbConnect(database);
+    const Periodo =
+      userConn.models.Periodo || userConn.model("Periodo", PeriodoSchema);
+    await Periodo.insertMany(getDefaultPeriodos());
 
     const payload = {
       _id: newUser._id,

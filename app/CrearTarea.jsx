@@ -2,11 +2,10 @@ import { useState } from "react";
 
 export default function CrearTarea({ handleAddTarea, currentPeriodo }) {
   const [text, setText] = useState("");
-  const creaLaTarea = (e, text) => {
-    e.preventDefault();
+  const creaLaTarea = (event, taskName) => {
+    event.preventDefault();
     handleAddTarea({
-      periodo: currentPeriodo.nombre,
-      nombre: text,
+      nombre: taskName,
       completed: false,
     });
     setText("");
@@ -15,14 +14,14 @@ export default function CrearTarea({ handleAddTarea, currentPeriodo }) {
     <div className="flex justify-center mt-5">
       {!currentPeriodo ? null : (
         <form
-          onSubmit={(e) => creaLaTarea(e, text)}
+          onSubmit={(event) => creaLaTarea(event, text)}
           className="flex flex-col items-center gap-2"
         >
           <input
             name="nombre"
             type="text"
             value={text}
-            onChange={(e) => setText(e.target.value)}
+            onChange={(event) => setText(event.target.value)}
             placeholder="Nueva tarea"
             className="inpt "
           />

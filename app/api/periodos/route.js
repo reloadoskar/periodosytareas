@@ -2,6 +2,7 @@ import jwt from "jsonwebtoken";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { PeriodoSchema } from "@/models/periodo";
+import { TareaSchema } from "@/models/tarea";
 import { dbConnect } from "@/utils/connection";
 import { normalizePeriodo } from "@/utils/periodos";
 
@@ -25,6 +26,11 @@ const getSession = async () => {
 const getPeriodoModel = async (database) => {
   const conn = await dbConnect(database);
   return conn.models.Periodo || conn.model("Periodo", PeriodoSchema);
+};
+
+const getTareaModel = async (database) => {
+  const conn = await dbConnect(database);
+  return conn.models.Tarea || conn.model("Tarea", TareaSchema);
 };
 
 export async function GET() {
@@ -126,7 +132,9 @@ export async function DELETE(request) {
       );
 
     const Periodo = await getPeriodoModel(session.database);
+    const Tarea = await getTareaModel(session.database);
     await Periodo.findByIdAndDelete(id);
+    await Tarea.deleteMany({ periodoId: id });
 
     return NextResponse.json({ status: "success" }, { status: 200 });
   } catch (error) {
