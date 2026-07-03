@@ -33,8 +33,8 @@ export async function GET(request) {
     const payload = getTokenPayload(request);
     if (!payload) {
       return NextResponse.json(
-        { message: "No autenticado", status: "error" },
-        { status: 401 },
+        { message: "No autenticado", status: "anonymous" },
+        { status: 200 },
       );
     }
 
