@@ -7,9 +7,11 @@ export default function Notificador({ currentPeriodo }) {
 
   useEffect(() => {
     if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("/sw.js").catch((error) => {
-        console.log("Error al registrar el Service Worker:", error);
-      });
+      navigator.serviceWorker
+        .register("/sw.js", { scope: "/" })
+        .catch((error) => {
+          console.log("Error al registrar el Service Worker:", error);
+        });
     }
   }, []);
 
@@ -60,7 +62,9 @@ export default function Notificador({ currentPeriodo }) {
             const timeoutId = setTimeout(() => {
               registration.showNotification(notification.title, {
                 body: `Periodo: ${periodo.nombre}`,
-                icon: "/icon.png",
+                badge: "/icons/icon-192.png",
+                icon: "/icons/icon-192.png",
+                data: { url: "/" },
               });
             }, delay);
             timeouts.current.push(timeoutId);

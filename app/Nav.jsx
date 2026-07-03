@@ -1,5 +1,11 @@
 import { useEffect, useState } from "react";
-import { FaSave, FaSignOutAlt, FaTimes, FaUserCircle } from "react-icons/fa";
+import {
+  FaDownload,
+  FaSave,
+  FaSignOutAlt,
+  FaTimes,
+  FaUserCircle,
+} from "react-icons/fa";
 import { useAuth } from "@/contextos/authContext";
 import { getUserDisplayName } from "@/utils/user";
 import Periodos from "./periodos/Periodos";
@@ -11,6 +17,8 @@ export default function Nav({
 }) {
   const { user, updateProfile, logout, error, mensaje } = useAuth();
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [installPrompt, setInstallPrompt] = useState(null);
+  const [isInstalled, setIsInstalled] = useState(false);
   const [profileForm, setProfileForm] = useState({
     nombre: "",
     apellido1: "",
@@ -27,6 +35,37 @@ export default function Nav({
     });
   }, [user]);
 
+  useEffect(() => {
+    const standaloneQuery = window.matchMedia("(display-mode: standalone)");
+    const updateInstalledState = () => {
+      setIsInstalled(
+        standaloneQuery.matches || window.navigator.standalone === true,
+      );
+    };
+    const handleBeforeInstallPrompt = (event) => {
+      event.preventDefault();
+      setInstallPrompt(event);
+    };
+    const handleAppInstalled = () => {
+      setInstallPrompt(null);
+      setIsInstalled(true);
+    };
+
+    updateInstalledState();
+    window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+    window.addEventListener("appinstalled", handleAppInstalled);
+    standaloneQuery.addEventListener("change", updateInstalledState);
+
+    return () => {
+      window.removeEventListener(
+        "beforeinstallprompt",
+        handleBeforeInstallPrompt,
+      );
+      window.removeEventListener("appinstalled", handleAppInstalled);
+      standaloneQuery.removeEventListener("change", updateInstalledState);
+    };
+  }, []);
+
   const handleProfileChange = (event) => {
     const { name, value } = event.target;
     setProfileForm((current) => ({ ...current, [name]: value }));
@@ -37,7 +76,19 @@ export default function Nav({
     await updateProfile(profileForm);
   };
 
+  const handleInstallApp = async () => {
+    if (!installPrompt) return;
+
+    await installPrompt.prompt();
+    const choice = await installPrompt.userChoice;
+    if (choice.outcome === "accepted") {
+      setIsInstalled(true);
+    }
+    setInstallPrompt(null);
+  };
+
   const displayName = getUserDisplayName(user);
+  const showInstallButton = installPrompt && !isInstalled;
 
   return (
     <div
@@ -68,6 +119,15 @@ export default function Nav({
 
         {showUserMenu ? (
           <div className="mt-4 rounded-xl border border-slate-800 bg-slate-900 p-4 shadow-xl max-w-xl">
+            {showInstallButton ? (
+              <button
+                className="btn mb-4 flex items-center justify-center gap-2 w-full"
+                onClick={handleInstallApp}
+                type="button"
+              >
+                <FaDownload /> Instalar app
+              </button>
+            ) : null}
             <form className="grid gap-3" onSubmit={handleProfileSubmit}>
               <div className="grid md:grid-cols-2 gap-3">
                 <label className="flex flex-col gap-1 text-sm">
