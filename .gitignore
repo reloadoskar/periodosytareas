@@ -13,6 +13,12 @@
 # testing
 /coverage
 
+# agent/browser temporary files
+.playwright-cli/
+output/playwright/
+.hermes-tmp.*/
+**/.hermes-tmp.*/
+
 # next.js
 /.next/
 /out/

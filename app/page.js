@@ -2,21 +2,65 @@
 
 import moment from "moment";
 import { useEffect, useMemo, useState } from "react";
-import { FaBars } from "react-icons/fa";
+import { FaBars, FaDownload } from "react-icons/fa";
 import { useAuth } from "@/contextos/authContext";
 import { usePeriodos } from "@/contextos/periodosContext";
 import { useTareas } from "@/contextos/tareasContext";
+import {
+  canNotifyTasks,
+  DEFAULT_NOTIFICATION_SETTINGS,
+  normalizeNotificationSettings,
+} from "@/utils/notificaciones";
 import { getCurrentPeriodo, normalizePeriodo } from "@/utils/periodos";
-import { getDateKey } from "@/utils/tareas";
-import CrearTarea from "./CrearTarea";
+import { getDateKey, updateTaskName } from "@/utils/tareas";
 import Login from "./Login";
 import Nav from "./Nav";
 import Notificador from "./Notificador";
+import NotificationSettings from "./NotificationSettings";
 import ProgressBar from "./ProgressBar";
 import Reloj from "./Reloj";
-import Tareas from "./Tareas";
+import CrearTarea from "./tareas/CrearTarea";
+import Tareas from "./tareas/Tareas";
 
 moment.locale("es");
+
+const NOTIFICATION_SETTINGS_KEY = "periodos-tareas-notification-settings";
+
+const getStoredNotificationSettings = () => {
+  if (typeof window === "undefined") return DEFAULT_NOTIFICATION_SETTINGS;
+
+  try {
+    return normalizeNotificationSettings(
+      JSON.parse(
+        window.localStorage.getItem(NOTIFICATION_SETTINGS_KEY) || "{}",
+      ),
+    );
+  } catch (_error) {
+    return DEFAULT_NOTIFICATION_SETTINGS;
+  }
+};
+
+const showTaskNotification = async (settings, title, body) => {
+  if (!canNotifyTasks(settings) || !("Notification" in window)) return;
+
+  const permission = await Notification.requestPermission();
+  if (permission !== "granted") return;
+
+  const options = {
+    body,
+    badge: "/icons/icon-192.png",
+    icon: "/icons/icon-192.png",
+    data: { url: "/" },
+  };
+
+  if ("serviceWorker" in navigator) {
+    const registration = await navigator.serviceWorker.ready;
+    await registration.showNotification(title, options);
+    return;
+  }
+
+  new Notification(title, options);
+};
 
 export default function Page() {
   const { autenticado, loading: authLoading } = useAuth();
@@ -36,7 +80,54 @@ export default function Page() {
   } = useTareas();
   const [currentTime, setCurrentTime] = useState(moment().format("HH:mm"));
   const [showPeriodosMenu, setShowPeriodosMenu] = useState(false);
+  const [notificationSettings, setNotificationSettings] = useState(
+    DEFAULT_NOTIFICATION_SETTINGS,
+  );
+  const [installPrompt, setInstallPrompt] = useState(null);
+  const [isInstalled, setIsInstalled] = useState(false);
   const todayKey = getDateKey();
+
+  useEffect(() => {
+    setNotificationSettings(getStoredNotificationSettings());
+  }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem(
+      NOTIFICATION_SETTINGS_KEY,
+      JSON.stringify(notificationSettings),
+    );
+  }, [notificationSettings]);
+
+  useEffect(() => {
+    const standaloneQuery = window.matchMedia("(display-mode: standalone)");
+    const updateInstalledState = () => {
+      setIsInstalled(
+        standaloneQuery.matches || window.navigator.standalone === true,
+      );
+    };
+    const handleBeforeInstallPrompt = (event) => {
+      event.preventDefault();
+      setInstallPrompt(event);
+    };
+    const handleAppInstalled = () => {
+      setInstallPrompt(null);
+      setIsInstalled(true);
+    };
+
+    updateInstalledState();
+    window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+    window.addEventListener("appinstalled", handleAppInstalled);
+    standaloneQuery.addEventListener("change", updateInstalledState);
+
+    return () => {
+      window.removeEventListener(
+        "beforeinstallprompt",
+        handleBeforeInstallPrompt,
+      );
+      window.removeEventListener("appinstalled", handleAppInstalled);
+      standaloneQuery.removeEventListener("change", updateInstalledState);
+    };
+  }, []);
 
   useEffect(() => {
     const interval = setInterval(
@@ -59,13 +150,32 @@ export default function Page() {
     fetchHistorial(currentPeriodo._id, todayKey);
   }, [autenticado, currentPeriodo?._id, fetchHistorial, fetchTareas, todayKey]);
 
+  const handleInstallApp = async () => {
+    if (!installPrompt) {
+      window.alert(
+        "Si tu navegador no muestra el instalador, usa la opción 'Agregar a pantalla principal' del menú del navegador.",
+      );
+      return;
+    }
+
+    await installPrompt.prompt();
+    const choice = await installPrompt.userChoice;
+    if (choice.outcome === "accepted") setIsInstalled(true);
+    setInstallPrompt(null);
+  };
+
   const handleAddTarea = async (nuevaTarea) => {
     if (nuevaTarea.nombre.trim() === "" || !currentPeriodo?._id) return;
 
-    const add = new Audio("/sounds/add.mp3");
+    const add = new Audio("/sounds/add.wav");
     add.play();
 
-    await createTarea(currentPeriodo._id, nuevaTarea, todayKey);
+    const created = await createTarea(currentPeriodo._id, nuevaTarea, todayKey);
+    await showTaskNotification(
+      notificationSettings,
+      "Tarea creada",
+      created.nombre,
+    );
   };
 
   const playSound = (soundPath) => {
@@ -80,6 +190,18 @@ export default function Page() {
     await deleteTarea(tareaId);
   };
 
+  const handleEditTarea = async (tarea, nombre) => {
+    const updated = updateTaskName(tarea, nombre);
+    if (!updated.nombre) return;
+
+    await updateTarea(tarea._id, updated);
+    await showTaskNotification(
+      notificationSettings,
+      "Tarea actualizada",
+      updated.nombre,
+    );
+  };
+
   const handleToggleCompleteTarea = async (tarea) => {
     if (!tarea?._id) return;
 
@@ -89,11 +211,16 @@ export default function Page() {
         : "/sounds/task-reopen.wav",
     );
 
-    await updateTarea(tarea._id, {
+    const updated = await updateTarea(tarea._id, {
       ...tarea,
       completed: !tarea.completed,
       completedTime: !tarea.completed ? new Date() : null,
     });
+    await showTaskNotification(
+      notificationSettings,
+      updated.completed ? "Tarea completada" : "Tarea reabierta",
+      updated.nombre,
+    );
   };
 
   const handleMoveTarea = async (tareaId, direction) => {
@@ -111,13 +238,25 @@ export default function Page() {
       style={{ backgroundColor, transition: "background-color 6s" }}
     >
       {!showPeriodosMenu && autenticado
-        ? <button
-            className="fixed top-5 left-5 z-50 bg-gray-900 text-white p-2 rounded-full shadow-md"
-            onClick={() => setShowPeriodosMenu(true)}
-            type="button"
-          >
-            <FaBars size={24} />
-          </button>
+        ? <div className="fixed top-5 left-5 z-50 flex gap-3">
+            <button
+              className="bg-gray-900 text-white p-2 rounded-full shadow-md"
+              onClick={() => setShowPeriodosMenu(true)}
+              type="button"
+            >
+              <FaBars size={24} />
+            </button>
+            {!isInstalled
+              ? <button
+                  className="bg-gray-900 text-white p-2 rounded-full shadow-md"
+                  onClick={handleInstallApp}
+                  title="Instalar app"
+                  type="button"
+                >
+                  <FaDownload size={24} />
+                </button>
+              : null}
+          </div>
         : null}
 
       {autenticado
@@ -127,7 +266,17 @@ export default function Page() {
               setShowPeriodosMenu={setShowPeriodosMenu}
               currentPeriodo={currentPeriodo}
             />
-            <Notificador currentPeriodo={currentPeriodo} />
+            <NotificationSettings
+              onChange={(settings) =>
+                setNotificationSettings(normalizeNotificationSettings(settings))
+              }
+              settings={notificationSettings}
+            />
+            <Notificador
+              currentPeriodo={currentPeriodo}
+              periodos={periodos}
+              settings={notificationSettings}
+            />
             <div className="text-slate-950 text-center md:text-right md:pr-28 pr-5">
               <Reloj />
             </div>
@@ -158,6 +307,7 @@ export default function Page() {
               currentPeriodo={currentPeriodo}
               tareas={tareas}
               handleDeleteTarea={handleDeleteTarea}
+              handleEditTarea={handleEditTarea}
               handleToggleCompleteTarea={handleToggleCompleteTarea}
               handleMoveTarea={handleMoveTarea}
             />

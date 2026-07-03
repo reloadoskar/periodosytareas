@@ -63,3 +63,10 @@ export function reorderTasks(tasks = [], taskId, direction) {
 
   return reordered.map((task, order) => ({ ...task, order }));
 }
+
+export function updateTaskName(task, name) {
+  return {
+    ...task,
+    nombre: typeof name === "string" ? name.trim() : "",
+  };
+}

@@ -1,8 +1,27 @@
 import moment from "moment";
 import { useEffect, useRef } from "react";
+import { canNotifyPeriods } from "@/utils/notificaciones";
 import { normalizePeriodo } from "@/utils/periodos";
 
-export default function Notificador({ currentPeriodo }) {
+const showNotification = (registration, title, body) =>
+  registration.showNotification(title, {
+    body,
+    badge: "/icons/icon-192.png",
+    icon: "/icons/icon-192.png",
+    data: { url: "/" },
+  });
+
+const getNextMoment = (timeValue, now) => {
+  const next = moment(timeValue, "HH:mm");
+  if (next.isSameOrBefore(now)) next.add(1, "day");
+  return next;
+};
+
+export default function Notificador({
+  currentPeriodo,
+  periodos = [],
+  settings,
+}) {
   const timeouts = useRef([]);
 
   useEffect(() => {
@@ -20,52 +39,54 @@ export default function Notificador({ currentPeriodo }) {
     timeouts.current = [];
 
     if (
-      !currentPeriodo ||
+      !canNotifyPeriods(settings) ||
       !("Notification" in window) ||
       !("serviceWorker" in navigator)
     ) {
       return undefined;
     }
 
-    const periodo = normalizePeriodo(currentPeriodo);
-    const start = moment(periodo.horaInicio, "HH:mm");
-    const end = moment(periodo.horaFin, "HH:mm");
-    if (end.isSameOrBefore(start)) end.add(1, "day");
-
-    const notifications = [
-      {
-        title: `Estás en el periodo: ${periodo.nombre}`,
-        time: start.clone().add(10, "seconds"),
-      },
-      {
-        title: `10 minutos para finalizar el periodo: ${periodo.nombre}`,
-        time: end.clone().subtract(10, "minutes"),
-      },
-      {
-        title: `5 minutos para finalizar el periodo: ${periodo.nombre}`,
-        time: end.clone().subtract(5, "minutes"),
-      },
-      {
-        title: `Periodo finalizó: ${periodo.nombre}`,
-        time: end.clone().subtract(5, "seconds"),
-      },
-    ];
-
     Notification.requestPermission().then((permission) => {
       if (permission !== "granted") return;
 
       navigator.serviceWorker.ready.then((registration) => {
         const now = moment();
+        const alertMinutes = settings.alertMinutes;
+        const periodosNormalizados = periodos.map(normalizePeriodo);
+        const notifications = [];
+
+        if (currentPeriodo) {
+          const periodo = normalizePeriodo(currentPeriodo);
+          const start = moment(periodo.horaInicio, "HH:mm");
+          const end = moment(periodo.horaFin, "HH:mm");
+          if (end.isSameOrBefore(start)) end.add(1, "day");
+          if (end.isSameOrBefore(now)) end.add(1, "day");
+
+          notifications.push({
+            title: `${alertMinutes} minutos para finalizar el periodo: ${periodo.nombre}`,
+            body: `Periodo: ${periodo.nombre}`,
+            time: end.clone().subtract(alertMinutes, "minutes"),
+          });
+        }
+
+        periodosNormalizados.forEach((periodo) => {
+          const start = getNextMoment(periodo.horaInicio, now);
+          notifications.push({
+            title: `${alertMinutes} minutos para empezar el periodo: ${periodo.nombre}`,
+            body: `Periodo: ${periodo.nombre}`,
+            time: start.clone().subtract(alertMinutes, "minutes"),
+          });
+        });
+
         notifications.forEach((notification) => {
           const delay = notification.time.diff(now);
           if (delay > 0) {
             const timeoutId = setTimeout(() => {
-              registration.showNotification(notification.title, {
-                body: `Periodo: ${periodo.nombre}`,
-                badge: "/icons/icon-192.png",
-                icon: "/icons/icon-192.png",
-                data: { url: "/" },
-              });
+              showNotification(
+                registration,
+                notification.title,
+                notification.body,
+              );
             }, delay);
             timeouts.current.push(timeoutId);
           }
@@ -77,7 +98,7 @@ export default function Notificador({ currentPeriodo }) {
       timeouts.current.forEach(clearTimeout);
       timeouts.current = [];
     };
-  }, [currentPeriodo]);
+  }, [currentPeriodo, periodos, settings]);
 
   return null;
 }

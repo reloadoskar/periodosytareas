@@ -6,6 +6,7 @@ import {
   getDateKey,
   groupTasksByDate,
   normalizeTask,
+  updateTaskName,
 } from "../utils/tareas.js";
 
 describe("tareas utils", () => {
@@ -63,5 +64,20 @@ describe("tareas utils", () => {
 
   it("convierte Date a llave YYYY-MM-DD local", () => {
     assert.equal(getDateKey(new Date(2026, 6, 3, 23, 59)), "2026-07-03");
+  });
+
+  it("edita el nombre de una tarea sin perder sus datos", () => {
+    assert.deepEqual(
+      updateTaskName(
+        { _id: "t1", nombre: "Vieja", periodoId: "p1", fecha: "2026-07-03" },
+        " Nueva tarea ",
+      ),
+      {
+        _id: "t1",
+        nombre: "Nueva tarea",
+        periodoId: "p1",
+        fecha: "2026-07-03",
+      },
+    );
   });
 });
