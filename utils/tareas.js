@@ -51,6 +51,17 @@ export function groupTasksByDate(tasks = [], todayKey = getDateKey()) {
     .map(([fecha, tareas]) => ({ fecha, tareas }));
 }
 
+export function filterHistoryByCompleted(historial = [], showCompleted = true) {
+  if (showCompleted) return historial;
+
+  return historial
+    .map((grupo) => ({
+      ...grupo,
+      tareas: grupo.tareas.filter((tarea) => !tarea.completed),
+    }))
+    .filter((grupo) => grupo.tareas.length > 0);
+}
+
 export function reorderTasks(tasks = [], taskId, direction) {
   const index = tasks.findIndex((task) => String(task._id) === String(taskId));
   const newIndex = index + direction;

@@ -41,7 +41,7 @@ export default function Nav({
 
   return (
     <div
-      className={`fixed top-0 left-0 h-full w-3/4
+      className={`fixed top-0 left-0 h-full w-full md:w-3/4
       bg-slate-950 shadow-lg z-40 transition-transform duration-300 overflow-y-auto
       ${showPeriodosMenu ? "translate-x-0" : "-translate-x-full"}`}
     >

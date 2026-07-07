@@ -76,11 +76,11 @@ export default function Periodos({ currentPeriodo }) {
               </div>
             </div>
 
-            <div className="flex flex-col gap-2 p-2 md:hidden ">
+            <div className="flex flex-col gap-2 p-2 md:hidden text-slate-300 ">
               {periodos.map((periodo) => (
                 <div
                   key={periodo._id}
-                  className={`flex flex-col even:bg-slate-500 ${periodo._id === currentPeriodo?._id ? "border-4 border-gray-800" : ""}`}
+                  className={`flex flex-col odd:bg-slate-700 ${periodo._id === currentPeriodo?._id ? "border-4 border-gray-800" : ""}`}
                 >
                   <div
                     className="flex h-2"
@@ -90,7 +90,7 @@ export default function Periodos({ currentPeriodo }) {
                     <div className="titulo">{periodo.nombre}</div>
                     <div className="flex justify-end">
                       <div>
-                        desde:{periodo.horaInicio} hasta:{periodo.horaFin}
+                        de: {periodo.horaInicio} a: {periodo.horaFin}
                       </div>
                     </div>
                     <div>{periodo.horas} horas</div>

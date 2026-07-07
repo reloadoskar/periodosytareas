@@ -12,7 +12,11 @@ import {
   normalizeNotificationSettings,
 } from "@/utils/notificaciones";
 import { getCurrentPeriodo, normalizePeriodo } from "@/utils/periodos";
-import { getDateKey, updateTaskName } from "@/utils/tareas";
+import {
+  filterHistoryByCompleted,
+  getDateKey,
+  updateTaskName,
+} from "@/utils/tareas";
 import Login from "./Login";
 import Nav from "./Nav";
 import Notificador from "./Notificador";
@@ -85,6 +89,8 @@ export default function Page() {
   );
   const [installPrompt, setInstallPrompt] = useState(null);
   const [isInstalled, setIsInstalled] = useState(false);
+  const [showCompletedHistoryTasks, setShowCompletedHistoryTasks] =
+    useState(true);
   const todayKey = getDateKey();
 
   useEffect(() => {
@@ -140,6 +146,10 @@ export default function Page() {
   const currentPeriodo = useMemo(
     () => getCurrentPeriodo(periodos, currentTime),
     [periodos, currentTime],
+  );
+  const filteredHistorial = useMemo(
+    () => filterHistoryByCompleted(historial, showCompletedHistoryTasks),
+    [historial, showCompletedHistoryTasks],
   );
   const backgroundColor = currentPeriodo?.color ?? "#3d3d3d";
 
@@ -318,15 +328,61 @@ export default function Page() {
             />
 
             <section className="mx-auto mt-8 max-w-2xl rounded-xl bg-slate-900/80 p-4 text-gray-100 shadow-xl">
-              <h2 className="titulo mb-3">Historial de tareas</h2>
+              <div className="mb-4 flex flex-col gap-4 border-b border-slate-700 pb-4 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <h2 className="titulo mb-1">Historial de tareas</h2>
+                  <p className="text-sm text-slate-300">
+                    Ajusta qué tareas aparecen en los días anteriores.
+                  </p>
+                </div>
+                <div className="rounded-lg border border-slate-700 bg-slate-950/50 p-3">
+                  <p className="mb-2 text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
+                    Filtros
+                  </p>
+                  <div className="flex items-center gap-3 text-sm font-semibold text-slate-100">
+                    <span>Mostrar completadas</span>
+                    <button
+                      aria-checked={showCompletedHistoryTasks}
+                      aria-label="Mostrar tareas completadas en el historial"
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-300 focus:ring-offset-2 focus:ring-offset-slate-900 ${
+                        showCompletedHistoryTasks
+                          ? "bg-blue-500"
+                          : "bg-slate-600"
+                      }`}
+                      onClick={() =>
+                        setShowCompletedHistoryTasks(
+                          (currentValue) => !currentValue,
+                        )
+                      }
+                      role="switch"
+                      type="button"
+                    >
+                      <span
+                        className={`inline-block h-5 w-5 rounded-full bg-white shadow transition-transform ${
+                          showCompletedHistoryTasks
+                            ? "translate-x-5"
+                            : "translate-x-1"
+                        }`}
+                      />
+                    </button>
+                  </div>
+                </div>
+              </div>
               {historyLoading ? <p>Cargando historial...</p> : null}
               {!historyLoading && historial.length === 0
                 ? <p className="text-sm text-slate-300">
                     Aún no hay tareas de días anteriores para este periodo.
                   </p>
                 : null}
+              {!historyLoading &&
+              historial.length > 0 &&
+              filteredHistorial.length === 0
+                ? <p className="text-sm text-slate-300">
+                    No hay tareas para mostrar con los filtros activos.
+                  </p>
+                : null}
               <div className="flex flex-col gap-4">
-                {historial.map((grupo) => (
+                {filteredHistorial.map((grupo) => (
                   <div key={grupo.fecha}>
                     <h3 className="font-bold text-blue-200">{grupo.fecha}</h3>
                     <ul className="mt-2 flex flex-col gap-1">

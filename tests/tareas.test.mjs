@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
+  filterHistoryByCompleted,
   filterTasksByPeriodAndDate,
   getDateKey,
   groupTasksByDate,
@@ -64,6 +65,30 @@ describe("tareas utils", () => {
 
   it("convierte Date a llave YYYY-MM-DD local", () => {
     assert.equal(getDateKey(new Date(2026, 6, 3, 23, 59)), "2026-07-03");
+  });
+
+  it("filtra tareas completadas del historial y oculta grupos vacíos", () => {
+    const historial = [
+      {
+        fecha: "2026-07-02",
+        tareas: [
+          { _id: "t1", nombre: "Pendiente", completed: false },
+          { _id: "t2", nombre: "Terminada", completed: true },
+        ],
+      },
+      {
+        fecha: "2026-07-01",
+        tareas: [{ _id: "t3", nombre: "Terminada vieja", completed: true }],
+      },
+    ];
+
+    assert.deepEqual(filterHistoryByCompleted(historial, false), [
+      {
+        fecha: "2026-07-02",
+        tareas: [{ _id: "t1", nombre: "Pendiente", completed: false }],
+      },
+    ]);
+    assert.equal(filterHistoryByCompleted(historial, true), historial);
   });
 
   it("edita el nombre de una tarea sin perder sus datos", () => {
