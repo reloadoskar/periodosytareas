@@ -70,6 +70,33 @@ export function getCurrentPeriodo(periodos = [], timeValue) {
   );
 }
 
+export function sortPeriodosByStart(periodos = []) {
+  return [...periodos].map(normalizePeriodo).sort((periodoA, periodoB) => {
+    const startA = timeToMinutes(periodoA.horaInicio);
+    const startB = timeToMinutes(periodoB.horaInicio);
+
+    if (startA === null && startB === null) return 0;
+    if (startA === null) return 1;
+    if (startB === null) return -1;
+
+    return startA - startB;
+  });
+}
+
+export function getAdjacentPeriodo(periodos = [], activePeriodoId, direction) {
+  const sorted = sortPeriodosByStart(periodos);
+  if (sorted.length === 0) return null;
+
+  const activeIndex = sorted.findIndex(
+    (periodo) => String(periodo._id) === String(activePeriodoId),
+  );
+  const currentIndex = activeIndex >= 0 ? activeIndex : 0;
+  const step = direction < 0 ? -1 : 1;
+  const nextIndex = (currentIndex + step + sorted.length) % sorted.length;
+
+  return sorted[nextIndex];
+}
+
 export function reorderItem(items = [], index, direction) {
   const newIndex = index + direction;
 

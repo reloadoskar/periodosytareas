@@ -2,9 +2,11 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
+  getAdjacentPeriodo,
   getCurrentPeriodo,
   normalizePeriodo,
   reorderItem,
+  sortPeriodosByStart,
   updatePeriodoTask,
 } from "../utils/periodos.js";
 
@@ -58,5 +60,26 @@ describe("periodos utils", () => {
   it("reorders an item and leaves invalid moves unchanged", () => {
     assert.deepEqual(reorderItem(["a", "b", "c"], 1, -1), ["b", "a", "c"]);
     assert.deepEqual(reorderItem(["a", "b", "c"], 0, -1), ["a", "b", "c"]);
+  });
+
+  it("orders periods by start time and moves to previous or next period", () => {
+    const periodos = [
+      { _id: "noche", nombre: "Noche", horaInicio: "18:00", horaFin: "22:00" },
+      {
+        _id: "manana",
+        nombre: "Mañana",
+        horaInicio: "06:00",
+        horaFin: "12:00",
+      },
+      { _id: "tarde", nombre: "Tarde", horaInicio: "12:00", horaFin: "18:00" },
+    ];
+
+    assert.deepEqual(
+      sortPeriodosByStart(periodos).map((periodo) => periodo._id),
+      ["manana", "tarde", "noche"],
+    );
+    assert.equal(getAdjacentPeriodo(periodos, "tarde", -1)?._id, "manana");
+    assert.equal(getAdjacentPeriodo(periodos, "tarde", 1)?._id, "noche");
+    assert.equal(getAdjacentPeriodo(periodos, "manana", -1)?._id, "noche");
   });
 });

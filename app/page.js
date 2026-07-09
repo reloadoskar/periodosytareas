@@ -2,7 +2,12 @@
 
 import moment from "moment";
 import { useEffect, useMemo, useState } from "react";
-import { FaBars, FaDownload } from "react-icons/fa";
+import {
+  FaBars,
+  FaChevronLeft,
+  FaChevronRight,
+  FaDownload,
+} from "react-icons/fa";
 import { useAuth } from "@/contextos/authContext";
 import { usePeriodos } from "@/contextos/periodosContext";
 import { useTareas } from "@/contextos/tareasContext";
@@ -11,7 +16,12 @@ import {
   DEFAULT_NOTIFICATION_SETTINGS,
   normalizeNotificationSettings,
 } from "@/utils/notificaciones";
-import { getCurrentPeriodo, normalizePeriodo } from "@/utils/periodos";
+import {
+  getAdjacentPeriodo,
+  getCurrentPeriodo,
+  normalizePeriodo,
+  sortPeriodosByStart,
+} from "@/utils/periodos";
 import {
   filterHistoryByCompleted,
   getDateKey,
@@ -91,6 +101,7 @@ export default function Page() {
   const [isInstalled, setIsInstalled] = useState(false);
   const [showCompletedHistoryTasks, setShowCompletedHistoryTasks] =
     useState(true);
+  const [selectedPeriodoId, setSelectedPeriodoId] = useState(null);
   const todayKey = getDateKey();
 
   useEffect(() => {
@@ -147,18 +158,40 @@ export default function Page() {
     () => getCurrentPeriodo(periodos, currentTime),
     [periodos, currentTime],
   );
+  const orderedPeriodos = useMemo(
+    () => sortPeriodosByStart(periodos),
+    [periodos],
+  );
+  const selectedPeriodo = useMemo(
+    () =>
+      orderedPeriodos.find(
+        (periodo) => String(periodo._id) === String(selectedPeriodoId),
+      ) ?? currentPeriodo,
+    [currentPeriodo, orderedPeriodos, selectedPeriodoId],
+  );
   const filteredHistorial = useMemo(
     () => filterHistoryByCompleted(historial, showCompletedHistoryTasks),
     [historial, showCompletedHistoryTasks],
   );
-  const backgroundColor = currentPeriodo?.color ?? "#3d3d3d";
+  const backgroundColor =
+    selectedPeriodo?.color ?? currentPeriodo?.color ?? "#3d3d3d";
 
   useEffect(() => {
-    if (!autenticado || !currentPeriodo?._id) return;
+    setSelectedPeriodoId(currentPeriodo?._id ?? null);
+  }, [currentPeriodo?._id]);
 
-    fetchTareas(currentPeriodo._id, todayKey);
-    fetchHistorial(currentPeriodo._id, todayKey);
-  }, [autenticado, currentPeriodo?._id, fetchHistorial, fetchTareas, todayKey]);
+  useEffect(() => {
+    if (!autenticado || !selectedPeriodo?._id) return;
+
+    fetchTareas(selectedPeriodo._id, todayKey);
+    fetchHistorial(selectedPeriodo._id, todayKey);
+  }, [
+    autenticado,
+    selectedPeriodo?._id,
+    fetchHistorial,
+    fetchTareas,
+    todayKey,
+  ]);
 
   const handleInstallApp = async () => {
     if (!installPrompt) {
@@ -175,12 +208,16 @@ export default function Page() {
   };
 
   const handleAddTarea = async (nuevaTarea) => {
-    if (nuevaTarea.nombre.trim() === "" || !currentPeriodo?._id) return;
+    if (nuevaTarea.nombre.trim() === "" || !selectedPeriodo?._id) return;
 
     const add = new Audio("/sounds/add.wav");
     add.play();
 
-    const created = await createTarea(currentPeriodo._id, nuevaTarea, todayKey);
+    const created = await createTarea(
+      selectedPeriodo._id,
+      nuevaTarea,
+      todayKey,
+    );
     await showTaskNotification(
       notificationSettings,
       "Tarea creada",
@@ -238,6 +275,20 @@ export default function Page() {
 
     playSound(direction < 0 ? "/sounds/task-up.wav" : "/sounds/task-down.wav");
     await reorderTarea(tareaId, direction);
+  };
+
+  const handleSelectAdjacentPeriodo = (direction) => {
+    const nextPeriodo = getAdjacentPeriodo(
+      orderedPeriodos,
+      selectedPeriodo?._id,
+      direction,
+    );
+
+    if (nextPeriodo?._id) setSelectedPeriodoId(nextPeriodo._id);
+  };
+
+  const handleSelectCurrentPeriodo = () => {
+    if (currentPeriodo?._id) setSelectedPeriodoId(currentPeriodo._id);
   };
 
   if (authLoading) return null;
@@ -299,33 +350,118 @@ export default function Page() {
               ? <p className="text-center text-red-500">{tareasError}</p>
               : null}
 
-            {currentPeriodo
-              ? <div className="w-3/4 m-auto">
-                  <h1 className="ttlbig">{currentPeriodo.nombre}</h1>
-                  <ProgressBar
-                    currentPeriodo={normalizePeriodo(currentPeriodo)}
+            {selectedPeriodo
+              ? <section className="mx-auto mt-6 w-5/6 rounded-2xl bg-slate-950/55 p-4 text-white shadow-xl backdrop-blur">
+                  <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-300">
+                        Periodo enfocado
+                      </p>
+                      <p className="text-xl font-black capitalize">
+                        {selectedPeriodo.nombre}
+                        {selectedPeriodo._id === currentPeriodo?._id
+                          ? <span className="ml-2 rounded-full bg-emerald-500/25 px-2 py-1 text-xs uppercase text-emerald-100">
+                              Actual
+                            </span>
+                          : null}
+                      </p>
+                      <p className="text-sm text-slate-300">
+                        {selectedPeriodo.horaInicio} - {selectedPeriodo.horaFin}
+                        . Las tareas nuevas se guardan en este periodo.
+                      </p>
+                    </div>
+                    <div className="flex items-center justify-center gap-2">
+                      <button
+                        aria-label="Ver periodo anterior"
+                        className="btn"
+                        onClick={() => handleSelectAdjacentPeriodo(-1)}
+                        type="button"
+                      >
+                        <FaChevronLeft />
+                      </button>
+                      <button
+                        className="btn"
+                        disabled={
+                          !currentPeriodo?._id ||
+                          selectedPeriodo._id === currentPeriodo?._id
+                        }
+                        onClick={handleSelectCurrentPeriodo}
+                        type="button"
+                      >
+                        Ahora
+                      </button>
+                      <button
+                        aria-label="Ver periodo próximo"
+                        className="btn"
+                        onClick={() => handleSelectAdjacentPeriodo(1)}
+                        type="button"
+                      >
+                        <FaChevronRight />
+                      </button>
+                    </div>
+                  </div>
+                  <div className="flex gap-2 overflow-x-auto pb-2">
+                    {orderedPeriodos.map((periodo) => {
+                      const isSelected = periodo._id === selectedPeriodo._id;
+                      const isCurrent = periodo._id === currentPeriodo?._id;
+
+                      return (
+                        <button
+                          className={`min-w-36 rounded-xl border px-3 py-2 text-left transition ${
+                            isSelected
+                              ? "border-white bg-white text-slate-950 shadow-lg"
+                              : "border-slate-600 bg-slate-900/80 text-slate-100 hover:bg-slate-800"
+                          }`}
+                          key={periodo._id}
+                          onClick={() => setSelectedPeriodoId(periodo._id)}
+                          type="button"
+                        >
+                          <span className="block text-sm font-black capitalize">
+                            {periodo.nombre}
+                          </span>
+                          <span className="block text-xs">
+                            {periodo.horaInicio} - {periodo.horaFin}
+                          </span>
+                          {isCurrent
+                            ? <span className="mt-1 inline-block rounded-full bg-emerald-500/25 px-2 py-0.5 text-[10px] font-bold uppercase text-emerald-200">
+                                Actual
+                              </span>
+                            : null}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {selectedPeriodo
+                    ? <div className="w-5/6 m-auto">
+                        <h1 className="ttlbig">{selectedPeriodo.nombre}</h1>
+                        <ProgressBar
+                          currentPeriodo={normalizePeriodo(selectedPeriodo)}
+                        />
+                      </div>
+                    : <div className="titulo">
+                        {
+                          "<--Crea un periodo para empezar a trabajar con tareas"
+                        }
+                      </div>}
+                  {tareasLoading
+                    ? <p className="text-center text-white">
+                        Cargando tareas...
+                      </p>
+                    : null}
+                  <Tareas
+                    currentPeriodo={selectedPeriodo}
+                    tareas={tareas}
+                    handleDeleteTarea={handleDeleteTarea}
+                    handleEditTarea={handleEditTarea}
+                    handleToggleCompleteTarea={handleToggleCompleteTarea}
+                    handleMoveTarea={handleMoveTarea}
                   />
-                </div>
-              : <div className="titulo">
-                  {"<--Crea un periodo para empezar a trabajar con tareas"}
-                </div>}
-
-            {tareasLoading
-              ? <p className="text-center text-white">Cargando tareas...</p>
+                  <CrearTarea
+                    handleAddTarea={handleAddTarea}
+                    currentPeriodo={selectedPeriodo}
+                  />
+                </section>
               : null}
-            <Tareas
-              currentPeriodo={currentPeriodo}
-              tareas={tareas}
-              handleDeleteTarea={handleDeleteTarea}
-              handleEditTarea={handleEditTarea}
-              handleToggleCompleteTarea={handleToggleCompleteTarea}
-              handleMoveTarea={handleMoveTarea}
-            />
-
-            <CrearTarea
-              handleAddTarea={handleAddTarea}
-              currentPeriodo={currentPeriodo}
-            />
 
             <section className="mx-auto mt-8 max-w-2xl rounded-xl bg-slate-900/80 p-4 text-gray-100 shadow-xl">
               <div className="mb-4 flex flex-col gap-4 border-b border-slate-700 pb-4 sm:flex-row sm:items-start sm:justify-between">

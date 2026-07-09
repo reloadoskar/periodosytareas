@@ -74,12 +74,12 @@ export default function ProgressBar({ currentPeriodo }) {
       </div>
       <div className="flex justify-between">
         <p>{periodo.horaInicio}</p>
+        <div className="text-center">
+          <p>
+            duración: {duracionTexto} | Quedan: {restantes} min
+          </p>
+        </div>
         <p>{periodo.horaFin}</p>
-      </div>
-      <div className="text-center">
-        <p>
-          duración: {duracionTexto} | Quedan: {restantes} min
-        </p>
       </div>
     </div>
   );
